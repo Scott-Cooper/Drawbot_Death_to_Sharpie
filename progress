@@ -1,0 +1,27 @@
+#!/usr/bin/perl
+
+use Time::localtime;
+use File::stat;
+
+open(FILE, "</tmp/log") or die "Could not open file: $!";
+my $current_lines = 0;
+while (<FILE>) {
+    $current_lines++;
+}
+close FILE;
+
+open(FILE, "</home/pi/drawbot/gcode.txt") or die "Could not open file: $!";
+my $total_lines = 0;
+while (<FILE>) {
+    $total_lines++;
+}
+close FILE;
+
+my $ct = stat('/home/pi/drawbot/gcode.txt')->ctime;
+my $lt = time();
+my $et = $lt - $ct;
+my $ett = $et * 1/($current_lines / $total_lines);
+
+print("Percentage complete:  ", $current_lines / $total_lines * 100 . "\n");
+print("Est. time complete:   ", ctime($ett + $ct), "\n");
+print("Est. time complete:   ", ctime($ett + $ct)->tim_min, "\n");

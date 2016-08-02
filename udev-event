@@ -1,0 +1,54 @@
+#!/bin/sh
+
+# udev_event is run out of the /etc/udev/rules.d/99-storage-rules.
+#
+# It looks for two files on a block device that can be mounted under /mnt.
+# The first file is gcode.txt, if found copies it to local storage and runs pibot.sh
+# The second is shutdown.txt, if found will kill pibot.py and safely shutdown.
+# Logging can be found in /var/log/syslog.
+
+
+# Used to debugging udev events
+#( date; env; echo) >> /home/pi/drawbot/udev-log
+
+case "$ACTION" in
+	add)
+		/usr/bin/logger -t DRAWBOT Storage device inserted at `date +'%F %X'`
+
+		mount "$DEVNAME" /mnt
+		if [ $? -eq 0 ]; then
+			/usr/bin/logger -t DRAWBOT $DEVNAME mounted at `date +'%F %X'`
+
+			# Shutdown if shutdown.txt exists on the flash drive
+			if [ -r /mnt/shutdown.txt ]; then
+				/usr/bin/logger -t DRAWBOT killing pybot.py at `date +'%F %X'`.
+				killall -s SIGINT /usr/bin/python
+				sleep 10 
+				/usr/bin/logger -t DRAWBOT shutdown at `date +'%F %X'`.
+				shutdown -h now
+				
+				# Sleep now, it will all be over soon.
+				sleep 600
+			fi
+
+			cp /mnt/gcode.txt /home/pi/drawbot/ 
+			if [ $? -eq 0 ]; then
+				/usr/bin/logger -t DRAWBOT gcode.txt file copied.
+				umount /mnt
+	
+				echo /home/pi/drawbot/pibot.sh | at now
+			else
+				/usr/bin/logger -t DRAWBOT gcode.txt file not found.
+			fi
+			umount /mnt
+		else
+			/usr/bin/logger -t DRAWBOT $DEVNAME failed to mount at `date +'%F %X'`
+			exit 1
+		fi
+		;;
+	remove)
+		/usr/bin/logger -t DRAWBOT Storage device removed at `date +'%F %X'`
+		;;
+esac
+
+
